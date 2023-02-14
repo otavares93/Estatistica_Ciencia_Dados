@@ -1,0 +1,122 @@
+---
+title: "Transformando a aula anterior em um código versionado e 'reprodutível'"
+author: "Otto Tavares"
+date: "2023-02-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introdução
+
+Na Aula 5 o objetivo é transformar as manipulações de dados realizadas na Aula 4 em um código R Markdown. Ao fazermos isso, teremos o passo a passo da análise com todas as decisões tomadas facilmente acessadas e de forma convidativa ao usuário. 
+
+O objetivo principal dessa abordagem é garantir que outro usuário ao se deparar com esse código, seja capaz de reproduzir cada passo em seu ambiente de análise. 
+
+
+Para que isso seja possível, os dados devem ser compartilhados, ou a forma de coleta deve estar bem explícita, bem como o versionamento do código deve estar registrado por um documento git e salvo em respositório online através do GitHub.
+
+Relembrando a análise que fizemos na aula passada:
+
+* Importamos dados dos 10 países mais populosos do mundo através do site do wikipedia
+* Limpamos as colunas de interesse de análise, como o número absoluto da população reportada, a Data de coleta da informação e qual a proporção da população mundial aquele dado representava.
+
+## Preparando o ambiente de análise
+
+Dessa forma, o primeiro passo de nossa análise será importar as bilbiotecas que foram necessárias para o desenvolvimento.
+
+```{r importando bibliotecas, echo = TRUE}
+library(tidyverse)
+library(rvest)
+library(data.table)
+library(robotstxt)
+library(knitr)
+```
+
+Posteriomente, vamos trocar o diretório de referência para o trabalho, mas não vamos deixas essa informação pública para o usuário.
+
+```{r mudando o diretorio, echo = FALSE}
+setwd("/Users/ottotavares/Library/Mobile Documents/com~apple~CloudDocs/Documents/infnet/Estatistica para Ciência de Dados/dados_utilizados")
+```
+
+## Importando os dados
+
+A partir da definição do ambiente partiremos para importação dos dados web, partindo do link do wikipedia e utilizando a bibliotca rvest, para ler o arquivo html e processá-lo até chegarmos nas tabelas presentes no site.
+
+O que nos permite escolher a quarta tabela, sendo essa a do ranking populacional do nosso interesse.
+
+```{r importando os dados, echo = TRUE}
+populacao.mundial.web <- rvest::read_html("https://en.wikipedia.org/wiki/World_population")
+lpop <- populacao.mundial.web %>% rvest::html_nodes("table") %>% rvest::html_table()
+pop.mundial <- lpop[[4]]
+kable(head(pop.mundial))
+```
+
+## Limpando os dados
+
+Ao termos acesso aos dados, percebemos a necessidade de limpeza dos mesmos, da seguinte forma:
+
+1. Criando uma função auxiliar customizada, que nos permita trocar os espaços dos nomes pelo sinal de '_'
+2. Selecionando apenas as variáveis de interesse para análise
+3. Convertendo os dados de população para número
+4. Convertendo os dados de percentual de população em relação à população total do mundo para número.
+5. Convertendo os dados de data para o formato IDate o que permite a manipulação matemática dos mesmos.
+
+
+#### 1. Criando função auxiliar customizada para limpar os nomes das variáveis
+
+```{r limpeza nomes, echo = TRUE}
+limpeza.nomes <- function(nomes)
+{
+  nomes.limpos <- nomes %>% stringr::str_replace_all("/", "") %>% stringr::str_replace_all("\\s", "_") %>% stringr::str_replace_all("__", "_")
+  return(nomes.limpos)  
+}
+
+names(pop.mundial) <- limpeza.nomes(names(pop.mundial))
+names(pop.mundial)
+```
+
+#### 2. Selecionando apenas as variáveis de interesse para análise
+```{r selecionando variáveis, echo = TRUE}
+pop.mundial <- pop.mundial %>% dplyr::select(Rank:Date)
+```
+
+#### 3. Convertendo os dados de população para número
+```{r convertendo dados pop, echo = TRUE}
+pop.mundial <- pop.mundial %>% dplyr::mutate(Population = as.numeric(stringr::str_replace_all(Population, "\\,", "")))
+```
+
+
+#### 4. Convertendo os dados de percentual de população em relação à população total do mundo para número.
+```{r convertendo dados percent, echo = TRUE}
+pop.mundial <- pop.mundial %>% dplyr::mutate(Percentage_of_the_world = as.numeric(stringr::str_replace_all(Percentage_of_the_world, "%", ""))/100)
+```
+
+#### 5. Convertendo os dados de data para o formato IDate o que permite a manipulação matemática dos mesmos.
+
+```{r convertendo dados de data, echo = TRUE}
+pop.mundial <- pop.mundial %>% dplyr::mutate(Date = as.IDate(gsub(" ", "-", Date), format = "%d-%b-%Y"))
+```
+
+
+#### Dados após limpeza
+
+Após passar pelo passo a passo de limpeza dos dados podemos ver como ele se encontra ao final do processo.
+
+```{r dados limpos, echo = TRUE}
+kable(head(pop.mundial))
+```
+
+Reparem que agora podemos filtrar os dados por data de atualização, fato que não era possível quando as datas eram tratadas como texto.
+
+```{r filtrando dados por data, echo = TRUE}
+pop.mundial %>% dplyr::filter(year(Date) > '2022')
+```
+
+
+
+## Vem mais por aí
+
+Podemos criar um plot e reportá-lo em nosso documento a partir dos dados, que tal?
