@@ -120,3 +120,8 @@ pop.mundial %>% dplyr::filter(year(Date) > '2022')
 ## Vem mais por aí
 
 Podemos criar um plot e reportá-lo em nosso documento a partir dos dados, que tal?
+
+```{r plotando a informacao populacao, echo = TRUE}
+ggplot(pop.mundial %>% dplyr::select(Country_Dependency, Population), aes(x = Country_Dependency, y =Population)) + geom_bar(stat = "identity")
+```
+
