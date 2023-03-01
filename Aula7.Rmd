@@ -1,5 +1,5 @@
 ---
-title: "Transformando a aula anterior em um código versionado e 'reprodutível'"
+title: "Análise descritiva de uma base de dados"
 author: "Otto Tavares"
 date: "2023-02-13"
 output: github_document

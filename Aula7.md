@@ -1,4 +1,4 @@
-Transformando a aula anterior em um código versionado e ‘reprodutível’
+Análise descritiva de uma base de dados
 ================
 Otto Tavares
 2023-02-13
