@@ -1,0 +1,107 @@
+---
+title: "Transformando a aula anterior em um código versionado e 'reprodutível'"
+author: "Otto Tavares"
+date: "2023-02-13"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Introdução
+
+Na Aula 7, temos o objetivo de abrir uma base de dados e dar os primeiros passos em análise estatística dessa base.
+
+Como sempre, o primeiro passo é importar as bibliotecas que serão utilizadas para análise, como tydiverse, summarytools e dlookr.
+
+```{r importando bibliotecas, echo = TRUE}
+library(tidyverse)
+library(dlookr)
+library(summarytools)
+library(readxl)
+library(knitr)
+
+#crimes.furtos %>% dplyr::filter(mes_ano == "2022m12") %>% diagnose()
+
+#crimes.furtos %>% dplyr::filter(mes_ano == "2022m12") %>% dfSummary() %>% view()
+```
+
+A base trabalhada nesta aula, será a base de dados hipotética disponbilizada no livro texto dos autores Bussab e Moretim. Vamos importá-la e imprimir as primeiras observações para conhecimento das variáveis.
+
+```{r importando dados, echo = FALSE}
+salarios <- readxl::read_excel("/Users/ottotavares/Library/Mobile Documents/com~apple~CloudDocs/Documents/infnet/Estatistica para Ciência de Dados/dados_utilizados/dados_bussab_m.xlsx")
+```
+
+```{r imprimindo as variaveis, echo = TRUE}
+kable(salarios)
+```
+
+###Identificando os tipos de cada variável na base
+
+Para identificar os tipos de cada variável na base, vamos utilizar a função diagnose do pacote dlookr e reportar o tipo de cada um para melhor trabalharmos os dados.
+
+```{r identificando os tipos de variáveis, echo = TRUE}
+salarios %>% dlookr::diagnose()
+```
+
+É fácil ver que na base há três variáveis qualitativas, sendo as variáveis Estado Civil e região nominais, enquanto a variável Grau de Instrução é ordinal.
+
+Sobre as variáveis quantitativas, temos número de filhos e idade com variáveis discretas, equanto a variável salário é contínua.
+
+##Análise de frequências de variáveis qualitativas
+
+A variável região é uma das variáveis qualitativas nominais da base, sendo uma variável interessante para extraírmos as frequências. Para esse caso, vamos utilizar a função freq() do pacote summarytools
+
+```{r frequencias de uma variavel, echo = TRUE}
+salarios %>% dplyr::select(regiao) %>% summarytools::freq()
+```
+
+Nas colunas Freq, temos a frequência absoluta, mostrando um grau de bastante homogeneidade entre as classes. Padrão esse, que é confirmado com a coluna Valid, que apresenta as frequências relativas de cada opção de região. 
+
+Podemos fazer a mesma análise para os dados de estado civil, os quais podemos estar interessados em buscar evidência se há mais funcionários casados ou solteiros na empresa. A seguir, temos a tabela destas proporções, onde é perceptível que há maior proporção de funcionários casados.
+
+
+```{r frequencias da variavel ecivil, echo = TRUE}
+salarios %>% dplyr::select(estado_civil) %>% summarytools::freq()
+```
+
+É importante destacar, que lemos a coluna Valid sem nos preocupar nestes casos, pois não há dados faltantes para nenhumas das duas variáveis.
+
+
+Por fim, podemos criar tabelas de frequências para uma variável quantitativa discreta, como é o caso do número de filhos dos funcionários da empresa. 
+
+```{r frequencias da variavel nfilhos, echo = TRUE}
+salarios %>% dplyr::select(n_filhos) %>% summarytools::freq()
+```
+
+Como há dados faltantes para essa variável, é importante o analista determinar qual o espaço amostral está interessado em focar sua análise. 
+
+A fim de ser comparável às análises pregressas, é importante que as frequências absoluta e relativa do total de dados seja considerada, isto é, leitura da coluna Total, a fim de manter o mesmo espaço amostral.
+
+Caso, ele esteja interessado em analisar apenas os dados válidos, ele pode redefinir o espaço amostral, ler apenas a coluna Valid, porém recalculando as tabelas anteriores, considerando os indivíduos apenas com dados preenchidos para a variável filhos.
+
+##Análise descritiva e de histogramas de uma variável contínua\
+
+Já para a variável salários, podemos analisar a centralidade dos dados, dipersão, assimetria, bem como suas estatísticas de ordem, a fim de checar se há presença de outliers.
+
+Para realizar essa análise, podemos utilizar a função descr do pacote summarytools, e posteriormente realizar a leitura desses dados.
+
+```{r desc variavel salario , echo = TRUE}
+salarios %>% dplyr::select(salario) %>% summarytools::descr()
+```
+
+##Análise visual da variável salário
+
+```{r analisando salario visualmente , echo = TRUE}
+salarios %>% dplyr::select(salario) %>% ggplot(aes(x=salario))+geom_histogram(aes(y = after_stat(density)) ,bins = 5, fill = 'lightblue') + xlab('Salário') + ylab('Densidade de Frequência') + geom_vline(xintercept=c(median(salarios$salario), mean(salarios$salario))) + annotate("text", x=median(salarios$salario) + 0.3, y=0.05, label="Mediana", angle=90) + annotate("text", x=mean(salarios$salario) + 0.3, y=0.05, label="Média", angle=90) + theme_classic()
+```
+
+
+```{r analisando salario visualmente com kernel , echo = TRUE}
+salarios %>% dplyr::select(salario) %>% ggplot(aes(x=salario))+geom_histogram(aes(y = after_stat(density)) ,bins = 5, fill = 'lightblue') + xlab('Salário') + ylab('Densidade de Frequência') + geom_vline(xintercept=c(median(salarios$salario), mean(salarios$salario))) + annotate("text", x=median(salarios$salario) + 0.3, y=0.05, label="Mediana", angle=90) + annotate("text", x=mean(salarios$salario) + 0.3, y=0.05, label="Média", angle=90) + geom_density(linetype = 2) + theme_classic()
+```
+
+
+

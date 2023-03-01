@@ -1,0 +1,190 @@
+---
+title: "Transformando a aula anterior em um código versionado e 'reprodutível'"
+author: "Otto Tavares"
+date: "2023-02-13"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introdução
+
+Na Aula 5 o objetivo é transformar as manipulações de dados realizadas na Aula 4 em um código R Markdown. Ao fazermos isso, teremos o passo a passo da análise com todas as decisões tomadas facilmente acessadas e de forma convidativa ao usuário. 
+
+O objetivo principal dessa abordagem é garantir que outro usuário ao se deparar com esse código, seja capaz de reproduzir cada passo em seu ambiente de análise. 
+
+
+Para que isso seja possível, os dados devem ser compartilhados, ou a forma de coleta deve estar bem explícita, bem como o versionamento do código deve estar registrado por um documento git e salvo em respositório online através do GitHub.
+
+Relembrando a análise que fizemos na aula passada:
+
+* Importamos dados dos 10 países mais populosos do mundo através do site do wikipedia
+* Limpamos as colunas de interesse de análise, como o número absoluto da população reportada, a Data de coleta da informação e qual a proporção da população mundial aquele dado representava.
+
+## Preparando o ambiente de análise
+
+Dessa forma, o primeiro passo de nossa análise será importar as bilbiotecas que foram necessárias para o desenvolvimento.
+
+```{r importando bibliotecas, echo = TRUE}
+library(tidyverse)
+library(rvest)
+library(data.table)
+library(robotstxt)
+library(knitr)
+```
+
+Posteriomente, vamos trocar o diretório de referência para o trabalho, mas não vamos deixas essa informação pública para o usuário.
+
+```{r mudando o diretorio, echo = FALSE}
+#setwd("/Users/ottotavares/Library/Mobile Documents/com~apple~CloudDocs/Documents/infnet/Estatistica para Ciência de Dados/dados_utilizados")
+```
+
+## Importando os dados
+
+A partir da definição do ambiente partiremos para importação dos dados web, partindo do link do wikipedia e utilizando a bibliotca rvest, para ler o arquivo html e processá-lo até chegarmos nas tabelas presentes no site.
+
+O que nos permite escolher a quarta tabela, sendo essa a do ranking populacional do nosso interesse.
+
+```{r importando os dados, echo = TRUE}
+populacao.mundial.web <- rvest::read_html("https://en.wikipedia.org/wiki/World_population")
+lpop <- populacao.mundial.web %>% rvest::html_nodes("table") %>% rvest::html_table()
+pop.mundial <- lpop[[4]]
+kable(head(pop.mundial))
+```
+
+## Limpando os dados
+
+Ao termos acesso aos dados, percebemos a necessidade de limpeza dos mesmos, da seguinte forma:
+
+1. Criando uma função auxiliar customizada, que nos permita trocar os espaços dos nomes pelo sinal de '_'
+2. Selecionando apenas as variáveis de interesse para análise
+3. Convertendo os dados de população para número
+4. Convertendo os dados de percentual de população em relação à população total do mundo para número.
+5. Convertendo os dados de data para o formato IDate o que permite a manipulação matemática dos mesmos.
+
+
+#### 1. Criando função auxiliar customizada para limpar os nomes das variáveis
+
+```{r limpeza nomes, echo = TRUE}
+limpeza.nomes <- function(nomes)
+{
+  nomes.limpos <- nomes %>% stringr::str_replace_all("/", "") %>% stringr::str_replace_all("\\s", "_") %>% stringr::str_replace_all("__", "_")
+  return(nomes.limpos)  
+}
+
+names(pop.mundial) <- limpeza.nomes(names(pop.mundial))
+names(pop.mundial)
+```
+
+#### 2. Selecionando apenas as variáveis de interesse para análise
+```{r selecionando variáveis, echo = TRUE}
+pop.mundial <- pop.mundial %>% dplyr::select(Rank:Date)
+```
+
+#### 3. Convertendo os dados de população para número
+```{r convertendo dados pop, echo = TRUE}
+pop.mundial <- pop.mundial %>% dplyr::mutate(Population = as.numeric(stringr::str_replace_all(Population, "\\,", "")))
+```
+
+
+#### 4. Convertendo os dados de percentual de população em relação à população total do mundo para número.
+```{r convertendo dados percent, echo = TRUE}
+pop.mundial <- pop.mundial %>% dplyr::mutate(Percentage_of_the_world = as.numeric(stringr::str_replace_all(Percentage_of_the_world, "%", ""))/100)
+```
+
+#### 5. Convertendo os dados de data para o formato IDate o que permite a manipulação matemática dos mesmos.
+
+```{r convertendo dados de data, echo = TRUE}
+pop.mundial <- pop.mundial %>% dplyr::mutate(Date = as.IDate(gsub(" ", "-", Date), format = "%d-%b-%Y"))
+```
+
+
+#### Dados após limpeza
+
+Após passar pelo passo a passo de limpeza dos dados podemos ver como ele se encontra ao final do processo.
+
+```{r dados limpos, echo = TRUE}
+kable(head(pop.mundial))
+```
+
+Reparem que agora podemos filtrar os dados por data de atualização, fato que não era possível quando as datas eram tratadas como texto.
+
+```{r filtrando dados por data, echo = TRUE}
+pop.mundial %>% dplyr::filter(year(Date) > '2022')
+```
+
+
+
+## Vem mais por aí
+
+#Vamos explorar o ggplot juntos ?
+
+Podemos criar um plot e reportá-lo em nosso documento a partir dos dados, que tal?
+
+```{r plotando a informacao populacao, echo = TRUE}
+ggplot(pop.mundial %>% dplyr::select(Country_Dependency, Population), aes(x = Country_Dependency, y =Population)) + geom_bar(stat = "identity")
+```
+
+O primeiro plot escolhido foi um gráfico de barras com o elemento estatístico de identidade, para mostrar o nível que cada país do nosso ranking possui de população em absoluto. Esse primeiro plot nos retorna visualmente a informação que já éramos capazes de ler nas nossas tabelas.
+
+
+Porém, caso se tenha o interesse em visualizar quantos países por continente estão no ranking de top-10 de população mundial. Como faríamos?
+
+Primeiro devemos importar os dados de continente, desta vez em formato csv, e posteriormente vincularmos esses dados a nossa base principal de ranking populacional.
+
+1. Importando a base de dados de continentes.
+
+2. Vinculando esta base aos dados de top-10 ranking populacional.
+
+De posse da base de continentes, podemos utilizar o left_join do dplyr para realizar a vinculação e termos uma base com a informação que precisamos no momento para ampliar nossa análise e responder a pergunta de quantos países por continente estão no ranking de top-10 populacional do mundo.
+
+
+
+```{r importando base de continentes e vinculando à populacao, echo = FALSE}
+continentes <- readr::read_csv("/Users/ottotavares/Library/Mobile Documents/com~apple~CloudDocs/Documents/infnet/Estatistica para Ciência de Dados/dados_utilizados/continents-according-to-our-world-in-data.csv")
+
+pop.mundial <- pop.mundial %>% dplyr::left_join(continentes, by = c("Country_Dependency" = "Entity"))
+
+```
+
+3. Realizando o plot do número de países que estão no ranking de top-10
+
+Para realizar essa plot, vamos utilizar a função geom_bar() do ggplot novamente, porém agora com a função statística de contagem.
+
+
+```{r plotando a quantidade de paises no top10 por continente, echo = TRUE}
+ggplot(pop.mundial, aes(y = Continent)) + geom_bar(stat = "count") + coord_flip()
+```
+
+4. Analisando estatísticas descritivas visualmente para o nosso ranking
+
+Já sabemos que a Ásia tem o maior número de representantes no top-10, porém, como estão distribuídas as estatísticas de ordem de população dos nossos dados? Existe algum continente que apresenta um intervalo maior entre os países em termos populacionais, existe um continete massivo com as maiores populações e concentradas todas em um nível mais alto, isto é, além da ordem intra-grupo, somos capazes de tirar conclusões inter-grupos ?
+
+
+```{r plotando a populacao por continente em boxplot, echo = TRUE}
+ggplot(pop.mundial, aes(x = Continent, y = Population)) + geom_boxplot()
+```
+
+Como esperado, o continent asiático é massivo com os demais em termos de domínio populacional. Na segunda colocação aparece com o continente norte-americano estando à frente do continente sulamericano e do africano, provavelmente puxado pelos Estados Unidos.
+
+
+Porém nossa visualização apresentou um problema grave de escala, pois os números asiáticos são tão maiores, que fica dificil entender os padrões dos dados vizinhos. Logo podemos fazer uma transformação logarítma na escala dos dados, de modo a facilitar a leitura e a comparação inter-continentes. 
+
+```{r plotando a populacao por continente em boxplot com ajuste de escala, echo = TRUE}
+ggplot(pop.mundial, aes(x = Continent, y = Population)) + geom_boxplot() + scale_y_continuous(trans='log10')
+```
+
+
+Já fica possível verificar que os unicos paíseses africano e sulamericanos que estão no ranking são comparáveis ao países de população mínima no continente asiático, enquanto os mesmos são comparáveis à população mediana do continente norte americano. Já o continente europeu aparece com um representante possuindo a população mínima de todos os pares.
+
+
+No entanto, o bloxplot apenas nos dá a intuição das estatísticas de ordem da variável população por continente. Daí, vem a seguinte pergunta, como se desbruem os dados de população por grupo de continente? São todos concentrados em patamares muito altos, ou há variabilidade entre os eventos para cada continente. A extensão dos gráficos do tipo box_plot para visualizar características de distribuição são os gráficos do tipo violino.
+
+
+```{r plotando a populacao por continente em violino com ajuste de escala, echo = TRUE}
+ggplot(pop.mundial, aes(x = Continent, y = Population)) + geom_violin() + scale_y_continuous(trans='log10')
+```
+
+Como Africa, América do Sul e Europa possuem apenas uma observação no top-10, o gráfico do tipo violino não consegue estimar a distribuição dos pontos. Por outro lado, América do Norte e Ásia possuem mais de dois pontos, logo percebemos que algumas poucas observações da Ásia, China e Índia puxam a distribuição pra cima, enquanto as demais se concentram em valores mais abaixo. Enquanto na América do Norte temos apenas dois pontos, reforçando o comportamento de dois extremos.

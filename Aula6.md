@@ -196,6 +196,8 @@ pop.mundial %>% dplyr::filter(year(Date) > '2022')
 
 ## Vem mais por aí
 
+\#Vamos explorar o ggplot juntos ?
+
 Podemos criar um plot e reportá-lo em nosso documento a partir dos
 dados, que tal?
 
@@ -203,4 +205,114 @@ dados, que tal?
 ggplot(pop.mundial %>% dplyr::select(Country_Dependency, Population), aes(x = Country_Dependency, y =Population)) + geom_bar(stat = "identity")
 ```
 
-![](Aula5_files/figure-gfm/plotando%20a%20informacao%20populacao-1.png)<!-- -->
+![](Aula6_files/figure-gfm/plotando%20a%20informacao%20populacao-1.png)<!-- -->
+
+O primeiro plot escolhido foi um gráfico de barras com o elemento
+estatístico de identidade, para mostrar o nível que cada país do nosso
+ranking possui de população em absoluto. Esse primeiro plot nos retorna
+visualmente a informação que já éramos capazes de ler nas nossas
+tabelas.
+
+Porém, caso se tenha o interesse em visualizar quantos países por
+continente estão no ranking de top-10 de população mundial. Como
+faríamos?
+
+Primeiro devemos importar os dados de continente, desta vez em formato
+csv, e posteriormente vincularmos esses dados a nossa base principal de
+ranking populacional.
+
+1.  Importando a base de dados de continentes.
+
+2.  Vinculando esta base aos dados de top-10 ranking populacional.
+
+De posse da base de continentes, podemos utilizar o left_join do dplyr
+para realizar a vinculação e termos uma base com a informação que
+precisamos no momento para ampliar nossa análise e responder a pergunta
+de quantos países por continente estão no ranking de top-10 populacional
+do mundo.
+
+    ## Rows: 285 Columns: 4
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr (3): Entity, Code, Continent
+    ## dbl (1): Year
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+3.  Realizando o plot do número de países que estão no ranking de top-10
+
+Para realizar essa plot, vamos utilizar a função geom_bar() do ggplot
+novamente, porém agora com a função statística de contagem.
+
+``` r
+ggplot(pop.mundial, aes(y = Continent)) + geom_bar(stat = "count") + coord_flip()
+```
+
+![](Aula6_files/figure-gfm/plotando%20a%20quantidade%20de%20paises%20no%20top10%20por%20continente-1.png)<!-- -->
+
+4.  Analisando estatísticas descritivas visualmente para o nosso ranking
+
+Já sabemos que a Ásia tem o maior número de representantes no top-10,
+porém, como estão distribuídas as estatísticas de ordem de população dos
+nossos dados? Existe algum continente que apresenta um intervalo maior
+entre os países em termos populacionais, existe um continete massivo com
+as maiores populações e concentradas todas em um nível mais alto, isto
+é, além da ordem intra-grupo, somos capazes de tirar conclusões
+inter-grupos ?
+
+``` r
+ggplot(pop.mundial, aes(x = Continent, y = Population)) + geom_boxplot()
+```
+
+![](Aula6_files/figure-gfm/plotando%20a%20populacao%20por%20continente%20em%20boxplot-1.png)<!-- -->
+
+Como esperado, o continent asiático é massivo com os demais em termos de
+domínio populacional. Na segunda colocação aparece com o continente
+norte-americano estando à frente do continente sulamericano e do
+africano, provavelmente puxado pelos Estados Unidos.
+
+Porém nossa visualização apresentou um problema grave de escala, pois os
+números asiáticos são tão maiores, que fica dificil entender os padrões
+dos dados vizinhos. Logo podemos fazer uma transformação logarítma na
+escala dos dados, de modo a facilitar a leitura e a comparação
+inter-continentes.
+
+``` r
+ggplot(pop.mundial, aes(x = Continent, y = Population)) + geom_boxplot() + scale_y_continuous(trans='log10')
+```
+
+![](Aula6_files/figure-gfm/plotando%20a%20populacao%20por%20continente%20em%20boxplot%20com%20ajuste%20de%20escala-1.png)<!-- -->
+
+Já fica possível verificar que os unicos paíseses africano e
+sulamericanos que estão no ranking são comparáveis ao países de
+população mínima no continente asiático, enquanto os mesmos são
+comparáveis à população mediana do continente norte americano. Já o
+continente europeu aparece com um representante possuindo a população
+mínima de todos os pares.
+
+No entanto, o bloxplot apenas nos dá a intuição das estatísticas de
+ordem da variável população por continente. Daí, vem a seguinte
+pergunta, como se desbruem os dados de população por grupo de
+continente? São todos concentrados em patamares muito altos, ou há
+variabilidade entre os eventos para cada continente. A extensão dos
+gráficos do tipo box_plot para visualizar características de
+distribuição são os gráficos do tipo violino.
+
+``` r
+ggplot(pop.mundial, aes(x = Continent, y = Population)) + geom_violin() + scale_y_continuous(trans='log10')
+```
+
+    ## Warning: Groups with fewer than two data points have been dropped.
+    ## Groups with fewer than two data points have been dropped.
+    ## Groups with fewer than two data points have been dropped.
+
+![](Aula6_files/figure-gfm/plotando%20a%20populacao%20por%20continente%20em%20violino%20com%20ajuste%20de%20escala-1.png)<!-- -->
+
+Como Africa, América do Sul e Europa possuem apenas uma observação no
+top-10, o gráfico do tipo violino não consegue estimar a distribuição
+dos pontos. Por outro lado, América do Norte e Ásia possuem mais de dois
+pontos, logo percebemos que algumas poucas observações da Ásia, China e
+Índia puxam a distribuição pra cima, enquanto as demais se concentram em
+valores mais abaixo. Enquanto na América do Norte temos apenas dois
+pontos, reforçando o comportamento de dois extremos.
