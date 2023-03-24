@@ -82,6 +82,29 @@ A fim de ser comparável às análises pregressas, é importante que as frequên
 
 Caso, ele esteja interessado em analisar apenas os dados válidos, ele pode redefinir o espaço amostral, ler apenas a coluna Valid, porém recalculando as tabelas anteriores, considerando os indivíduos apenas com dados preenchidos para a variável filhos.
 
+```{r tabela contigencia grau de instrucao regiao, echo = TRUE}
+summarytools::ctable(x = salarios$Grau_de_instrucao, 
+       y = salarios$regiao, 
+       prop = "r") 
+```
+
+```{r tabela contigencia estado civil n_filhos, echo = TRUE}
+summarytools::ctable(x = factor(salarios$n_filhos), 
+       y = salarios$estado_civil, 
+       prop = "r") 
+```
+
+
+
+```{r heatmat estado civil e instrucao, echo = TRUE}
+salarios %>% ggplot(aes(x = estado_civil, y = Grau_de_instrucao, fill = salario)) + geom_tile() + xlab('Estado Civil') + ylab('Grau de Instrução')
+```
+
+
+```{r heatmat estado civil e regiao, echo = TRUE}
+salarios %>% ggplot(aes(x = regiao, y = Grau_de_instrucao, fill = salario)) + geom_tile() + xlab('Região') + ylab('Grau de Instrução')
+```
+
 ##Análise descritiva e de histogramas de uma variável contínua
 
 Já para a variável salários, podemos analisar a centralidade dos dados, dipersão, assimetria, bem como suas estatísticas de ordem, a fim de checar se há presença de outliers.

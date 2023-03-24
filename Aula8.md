@@ -1152,6 +1152,58 @@ pode redefinir o espaço amostral, ler apenas a coluna Valid, porém
 recalculando as tabelas anteriores, considerando os indivíduos apenas
 com dados preenchidos para a variável filhos.
 
+``` r
+summarytools::ctable(x = salarios$Grau_de_instrucao, 
+       y = salarios$regiao, 
+       prop = "r") 
+```
+
+    ## Cross-Tabulation, Row Proportions  
+    ## Grau_de_instrucao * regiao  
+    ## Data Frame: salarios  
+    ## 
+    ## -------------------- -------- ------------ ------------ ------------ -------------
+    ##                        regiao      capital     interior        outra         Total
+    ##    Grau_de_instrucao                                                              
+    ##   ensino fundamental             4 (33.3%)    3 (25.0%)    5 (41.7%)   12 (100.0%)
+    ##         ensino médio             5 (27.8%)    7 (38.9%)    6 (33.3%)   18 (100.0%)
+    ##             superior             2 (33.3%)    2 (33.3%)    2 (33.3%)    6 (100.0%)
+    ##                Total            11 (30.6%)   12 (33.3%)   13 (36.1%)   36 (100.0%)
+    ## -------------------- -------- ------------ ------------ ------------ -------------
+
+``` r
+summarytools::ctable(x = factor(salarios$n_filhos), 
+       y = salarios$estado_civil, 
+       prop = "r") 
+```
+
+    ## Cross-Tabulation, Row Proportions  
+    ## factor(salarios$n_filhos) * estado_civil  
+    ## 
+    ## --------------------------- -------------- ------------- ------------- -------------
+    ##                               estado_civil        casado      solteiro         Total
+    ##   factor(salarios$n_filhos)                                                         
+    ##                           0                   4 (100.0%)    0 (  0.0%)    4 (100.0%)
+    ##                           1                   5 (100.0%)    0 (  0.0%)    5 (100.0%)
+    ##                           2                   7 (100.0%)    0 (  0.0%)    7 (100.0%)
+    ##                           3                   3 (100.0%)    0 (  0.0%)    3 (100.0%)
+    ##                           5                   1 (100.0%)    0 (  0.0%)    1 (100.0%)
+    ##                        <NA>                   0 (  0.0%)   16 (100.0%)   16 (100.0%)
+    ##                       Total                  20 ( 55.6%)   16 ( 44.4%)   36 (100.0%)
+    ## --------------------------- -------------- ------------- ------------- -------------
+
+``` r
+salarios %>% ggplot(aes(x = estado_civil, y = Grau_de_instrucao, fill = salario)) + geom_tile() + xlab('Estado Civil') + ylab('Grau de Instrução')
+```
+
+![](Aula8_files/figure-gfm/heatmat%20estado%20civil%20e%20instrucao-1.png)<!-- -->
+
+``` r
+salarios %>% ggplot(aes(x = regiao, y = Grau_de_instrucao, fill = salario)) + geom_tile() + xlab('Região') + ylab('Grau de Instrução')
+```
+
+![](Aula8_files/figure-gfm/heatmat%20estado%20civil%20e%20regiao-1.png)<!-- -->
+
 \##Análise descritiva e de histogramas de uma variável contínua
 
 Já para a variável salários, podemos analisar a centralidade dos dados,
