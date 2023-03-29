@@ -2,7 +2,7 @@
 title: "Visualização da Distribuição de Dados"
 author: "Otto Tavares"
 date: "2023-02-13"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}

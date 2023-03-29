@@ -2,7 +2,7 @@
 title: "Visualização da Distribuição de Dados"
 author: "Otto Tavares"
 date: "2023-02-13"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -126,17 +126,25 @@ crimes %>% dplyr::filter(mes_ano == "2022m12") %>% dplyr::select(roubo_veiculo, 
 
 
 ## Pré Pandemia
-```{r shapiro wilk pré pandemia, echo = FALSE}
+```{r shapiro wilk pre pandemia, echo = FALSE}
 
-crimes.aisp %>% dplyr::filter(mes.ano %in% as.IDate("01-12-2019",format = "%d-%m-%Y")) %>% dplyr::select(roubo_transeunte) %>% shapiro.test()
+pre.pandemia <- crimes.aisp %>% dplyr::filter(mes.ano %in% as.IDate("01-12-2019",format = "%d-%m-%Y")) %>% dplyr::select(roubo_transeunte) 
+shapiro.test(pre.pandemia$roubo_transeunte)
 
 ```
 
 ## Pós Pandemia
-```{r shapiro wilk pós pandemia, echo = FALSE}
+```{r shapiro wilk pos pandemia, echo = FALSE}
 
-crimes.aisp %>% dplyr::filter(mes.ano %in% as.IDate("01-12-2022",format = "%d-%m-%Y")) %>% dplyr::select(roubo_transeunte) %>% as.numeric() %>% shapiro.test()
-
+pos.pandemia <- crimes.aisp %>% dplyr::filter(mes.ano %in% as.IDate("01-12-2022",format = "%d-%m-%Y")) %>% dplyr::select(roubo_transeunte)
+shapiro.test(pos.pandemia$roubo_transeunte)
 ```
 
+## Teste de Wilcoxon para checar o pareamento
+
+Realizado o teste de Wilcoxon para checar o pareamento entre as distribuições de roubo a transeunte do pré e do pós pandemia.
+
+```{r wilcox pos pandemia, echo = FALSE}
+wilcox.test(pre.pandemia$roubo_transeunte, pos.pandemia$roubo_transeunte, paired = T, exact = F)
+```
 
