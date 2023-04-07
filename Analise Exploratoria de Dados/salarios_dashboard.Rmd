@@ -1,0 +1,151 @@
+---
+title: "Análise de salários"
+output: 
+  flexdashboard::flex_dashboard:
+    runtime: shiny
+    theme:
+      bg: "#E0E0E0"
+      fg: "#101010" 
+      primary: "#101010"
+      base_font:
+        google: Prompt
+      code_font:
+        google: JetBrains Mono
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(summarytools)
+library(knitr)
+library(rmarkdown)
+library(kableExtra)
+library(ggplot2)
+library(stargazer)
+library(shiny)
+library(mice)
+# Install thematic and un-comment for themed static plots (i.e., ggplot2)
+# thematic::thematic_rmd()
+```
+
+```{r carregando os dados, include=FALSE}
+salarios <- readxl::read_excel("/Users/ottotavares/Library/Mobile Documents/com~apple~CloudDocs/Documents/infnet/Estatistica para Ciência de Dados/dados_utilizados/dados_bussab_m.xlsx")
+```
+
+Column {data-width=650 .tabset}
+-----------------------------------------------------------------------
+
+### Estatísticas descritivas da variável objetivo
+
+```{r}
+salarios %>% dplyr::select(salario) %>% summarytools::descr() %>% kbl(caption = "Estatísticas Descritivas da variável objetivo") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+```
+
+### Estatísticas descritivas das variáveis explicativas quantitativas
+
+```{r}
+
+salarios %>% dplyr::select(idade_anos , n_filhos) %>% summarytools::descr() %>% kbl(caption = "Estatísticas Descritivas das variáveis quantitativas") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+```
+
+
+### Estatísticas descritivas das variáveis explicativas categóricas
+
+```{r}
+
+
+salarios %>% dplyr::select(estado_civil) %>% summarytools::freq() %>% kbl(caption = "Estatísticas Descritivas das variáveis categóricas") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+salarios %>% dplyr::select(Grau_de_instrucao) %>% summarytools::freq() %>% kbl(caption = "Estatísticas Descritivas das variáveis categóricas") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+
+
+```
+
+
+### Rodando um modelo de regressão linear com as variáveis de salário
+
+```{r, results='asis'}
+
+
+reg1 <- lm(salario ~ idade_anos + factor(estado_civil) + factor(Grau_de_instrucao), data = salarios)
+stargazer(reg1, type = "html")
+
+
+
+```
+
+
+### Histograma de dados para variável n_filhos
+
+```{r, results='asis'}
+
+
+salarios %>% dplyr::select(n_filhos) %>% ggplot(aes(x=n_filhos, y = after_stat(density))) + geom_density(linetype = 2) + xlab('numero de filhos') + ylab('Densidade de Frequência') + theme_classic()
+
+
+
+```
+
+### Histograma de todos dados preenchidos
+
+```{r, results='asis'}
+
+selectInput(
+  'particoes', label = 'Número de partições:',
+  choices = 1:20, selected = 5
+)
+
+selectInput(
+  'iteracoes', label = 'Número de iterações:',
+  choices = 1:20, selected = 5
+)
+
+renderPlot({
+  
+imp <- mice(salarios %>% dplyr::mutate(estado_civil = as.factor(estado_civil), Grau_de_instrucao =   as.factor(Grau_de_instrucao), regiao = as.factor(regiao)), print = FALSE, m = as.numeric(input$particoes), max.iter = as.numeric(input$iteracoes) , seed   = 512) 
+
+names(imp$imp$n_filhos) <- paste("imp", names(imp$imp$n_filhos), sep = "_")
+imp_nfilhos <- imp$imp$n_filhos %>% tidyr::pivot_longer(cols = imp_1:ncol(imp$imp$n_filhos), values_to = "n_filhos", names_to   = "imp") %>% arrange(imp)
+
+
+ggplot(imp_nfilhos, aes(x = n_filhos, y = after_stat(density), colour = imp)) + geom_density(linetype = 2) + xlab('numero de    filhos') + ylab('Densidade de Frequência') + theme_classic()
+
+})
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Aproximação da distribuição dos valores observados variável salário por histograma e kernel
+
+```{r}
+fd <- function(x) {
+  n <-length(x)
+  return((2*IQR(x))/n^(1/3))
+}
+
+salarios %>% dplyr::select(salario) %>% ggplot(aes(x=salario))+geom_histogram(aes(y = after_stat(density)) , binwidth=fd, fill = 'lightblue') + xlab('Salário') + ylab('Densidade de Frequência') + labs(title = "Distribuição dos dados de salário aproximada por Histograma", subtitle = "Binarização pela Regra de FD") + geom_vline(xintercept=c(median(salarios$salario), mean(salarios$salario))) + annotate("text", x=median(salarios$salario) + 0.3, y=0.05, label="Mediana", angle=90) + annotate("text", x=mean(salarios$salario) + 0.3, y=0.05, label="Média", angle=90) + geom_density(linetype = 2) + theme_classic()
+
+```
+
+### Aproximação da distribuição dos valores preditos para a variável salário por histograma e por kernel
+
+```{r}
+
+reg1 <- lm(salario ~ idade_anos + factor(estado_civil) + factor(Grau_de_instrucao), data = salarios)
+salarios$pred <- predict(reg1, salarios)
+
+salarios %>% dplyr::select(pred) %>% ggplot(aes(x=pred)) + geom_histogram(aes(y = after_stat(density)) , binwidth=fd, fill = 'red') + xlab('Salário Predito') + ylab('Densidade de Frequência') + labs(title = "Distribuição dos dados de salário aproximada por Histograma", subtitle = "Binarização pela Diaconnis") + geom_vline(xintercept=c(median(salarios$pred), mean(salarios$pred))) + annotate("text", x=median(salarios$pred) + 0.3, y=0.05, label="Mediana", angle=90) + annotate("text", x=mean(salarios$pred) + 0.3, y=0.05, label="Média", angle=90) + geom_density(linetype = 2) + theme_classic()
+
+
+```

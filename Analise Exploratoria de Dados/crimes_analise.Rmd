@@ -1,0 +1,153 @@
+---
+title: "Análise de dados criminais"
+author: "Otto Tavares"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Introdução
+
+```{r importando bibliotecas, echo = TRUE}
+library(tidyverse)
+library(dlookr)
+library(summarytools)
+library(readxl)
+library(knitr)
+library(data.table)
+library(ggpubr)
+library(corrplot)
+library(stargazer)
+library(shiny)
+```
+
+
+#```{r importando dados, echo = FALSE}
+#crimes <- readr::read_csv2("/Users/ottotavares/Library/Mobile Documents/com~apple~CloudDocs/Documents/infnet/Análise Exploratoria de Dados/dados_utilizados/BaseDPEvolucaoMensalCisp.csv")
+#```
+
+
+#```{r filtrando os dados e descrevendo a base, echo = FALSE}
+
+#crimes.aisp <- crimes %>% dplyr::select(CISP, mes, ano,  AISP,  RISP, roubo_transeunte, roubo_celular) %>% dplyr::mutate(mes.ano = as.IDate(paste("01", mes, ano, sep = "-"), format = "%d-%m-%Y")) %>% dplyr::filter(mes.ano %in% c(as.IDate("01-12-2019",format = "%d-%m-%Y") ,as.IDate("01-12-2022",format = "%d-%m-%Y"))) %>% dplyr::group_by(AISP, mes.ano) %>% dplyr::summarise(roubo_transeunte = sum(roubo_transeunte), roubo_celular = sum(roubo_celular))
+
+#crimes.aisp <- crimes.aisp %>% dplyr::left_join(crimes %>% dplyr::select(AISP, Regiao, mes, ano) %>% 
+#dplyr::mutate(mes.ano = as.IDate(paste("01", mes, ano, sep = "-"), format = "%d-%m-%Y")) %>% dplyr::filter(mes.ano %in% c(as.IDate("01-12-2019",format = "%d-%m-%Y") ,as.IDate("01-12-2022",format = "%d-%m-%Y"))) %>% dplyr::distinct(AISP, mes.ano, Regiao), by = c("AISP" = "AISP", "mes.ano"="mes.ano"))
+```{r filtrando os dados e descrevendo a base, echo = FALSE}
+
+crimes.aisp %>% dlookr::diagnose()
+
+```
+
+# Descrição via boxplot e tabelas de contingência
+
+```{r descrevendo a base com box plot roubo transeunte, echo = FALSE}
+
+crimes.aisp %>% ggplot(aes(x = as.factor(AISP))) + geom_boxplot(aes(y = roubo_transeunte)) + xlab('Batalhões') + ylab('Roubo à Transeunte')
+```
+
+```{r descrevendo a base com box plot roubo celular, echo = FALSE}
+
+crimes.aisp %>% ggplot(aes(x = as.factor(AISP))) + geom_boxplot(aes(y = roubo_celular)) + xlab('Batalhões') + ylab('Roubo de Celular')
+```
+
+```{r tabelas de contingência, echo = FALSE}
+
+summarytools::ctable(x = crimes.aisp$mes.ano, 
+       y = crimes.aisp$Regiao, 
+       prop = "r") 
+
+```
+
+
+# Construindo os histogramas da Aula 1
+
+```{r filtrando os dados e visualizando dists., echo = FALSE}
+
+fd <- function(x) {
+  n <-length(x)
+  return((2*IQR(x))/n^(1/3))
+}
+
+sr <- function(x) {
+  n <-length(x)
+  return((3.49*sd(x))/n^(1/3))
+}
+
+#crimes.aisp <- crimes %>% dplyr::select(CISP, mes, ano,  AISP,  RISP, roubo_transeunte) %>% dplyr::mutate(mes.ano = as.IDate(paste("01", mes, ano, sep = "-"), format = "%d-%m-%Y")) %>% dplyr::group_by(AISP, mes.ano) %>% dplyr::summarise(roubo_transeunte = sum(roubo_transeunte))
+
+#Calculando os histogramas para o mesmo evento em diferentes instantes de tempo
+
+crimes.aisp %>% dplyr::filter(mes.ano %in% c(as.IDate("01-12-2019",format = "%d-%m-%Y") ,as.IDate("01-12-2022",format = "%d-%m-%Y"))) %>% ggplot(aes(x = roubo_transeunte)) + geom_histogram(aes(y = after_stat(density)), binwidth=fd, fill = 'lightblue') + facet_wrap(~mes.ano)
+```
+
+# Aplicando estimativa de densidade via kernel, através do kernel de epanechnikov
+
+```{r filtrando os dados e visualizando dists. com kernel, echo = FALSE, results='asis'}
+#Calculando os histogramas para o mesmo evento em diferentes instantes de tempo
+
+crimes.aisp %>% dplyr::filter(mes.ano %in% c(as.IDate("01-12-2019",format = "%d-%m-%Y") ,as.IDate("01-12-2022",format = "%d-%m-%Y"))) %>% ggplot(aes(x = roubo_transeunte)) + geom_histogram(aes(y = after_stat(density)), binwidth=fd, fill = 'lightblue') + geom_density(kernel = 'epanechnikov')+ facet_wrap(~mes.ano)
+```
+
+
+# Calculando a distribuição acumulada empírica do fenômeno observado
+
+```{r filtrando os dados e visualizando dists. acumuladas, echo = FALSE, results='asis'}
+
+crimes.aisp %>% dplyr::filter(mes.ano %in% c(as.IDate("01-12-2019",format = "%d-%m-%Y") ,as.IDate("01-12-2022",format = "%d-%m-%Y"))) %>% ggplot(aes(x = roubo_transeunte)) +stat_ecdf(geom = "step") + facet_wrap(~mes.ano)
+```
+
+
+
+# Calculando a dispersão e as correlações
+
+```{r calculando dispersao para as duas datas, echo = FALSE, results='asis'}
+
+crimes.aisp %>% ggplot(aes(x = roubo_transeunte, y = roubo_celular)) +geom_point() + facet_wrap(~mes.ano) + stat_cor(method="pearson") + xlab('Roubo a Transeunte') + ylab('Roubo de Celular')
+```
+
+
+```{r calculando corrplot pearson, echo = FALSE}
+
+crimes %>% dplyr::filter(mes_ano == "2022m12") %>% dplyr::select(roubo_veiculo, roubo_transeunte) %>% cor(., method = "pearson") %>% corrplot(., title = 'Pearson')
+
+```
+
+
+```{r calculando corrplot spearman, echo = FALSE}
+
+crimes %>% dplyr::filter(mes_ano == "2022m12") %>% dplyr::select(roubo_veiculo, roubo_transeunte) %>% cor(., method = "spearman") %>% corrplot(., title = 'Spearman')
+
+```
+
+
+# Realizando o teste de Shapiro Wilk nas amostras pré e pós pandemia
+
+
+## Pré Pandemia
+```{r shapiro wilk pre pandemia, echo = FALSE}
+
+pre.pandemia <- crimes.aisp %>% dplyr::filter(mes.ano %in% as.IDate("01-12-2019",format = "%d-%m-%Y")) %>% dplyr::select(roubo_transeunte) 
+shapiro.test(pre.pandemia$roubo_transeunte)
+
+```
+
+## Pós Pandemia
+```{r shapiro wilk pos pandemia, echo = FALSE}
+
+pos.pandemia <- crimes.aisp %>% dplyr::filter(mes.ano %in% as.IDate("01-12-2022",format = "%d-%m-%Y")) %>% dplyr::select(roubo_transeunte)
+shapiro.test(pos.pandemia$roubo_transeunte)
+```
+
+## Teste de Wilcoxon para checar o pareamento
+
+Realizado o teste de Wilcoxon para checar o pareamento entre as distribuições de roubo a transeunte do pré e do pós pandemia.
+
+```{r wilcox pos pandemia, echo = FALSE}
+wilcox.test(pre.pandemia$roubo_transeunte, pos.pandemia$roubo_transeunte, paired = T, exact = F)
+```
+

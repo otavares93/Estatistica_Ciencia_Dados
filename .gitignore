@@ -2,3 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+*.zip
+*.xlsx
+*.csv
+/Analise Exploratoria de Dados/backup/

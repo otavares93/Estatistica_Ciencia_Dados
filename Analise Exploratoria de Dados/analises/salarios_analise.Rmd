@@ -1,0 +1,310 @@
+---
+title: "Análise descritiva e estatística de uma base de dados de salários"
+author: "Otto Tavares"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+#output: beamer_presentation
+#theme: "Madrid"
+#colortheme: "beaver"
+#fonttheme: "structurebold"
+#incremental: false
+#keep_md: yes
+#latex_engine: lualatex
+#fig_width: 6.5
+#fig_height: 4
+#df_print: kable
+#includes:
+#  adding_header.tex
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Introdução
+
+Com a análise de salários, temos o objetivo de abrir uma base de dados e dar os primeiros passos em análise estatística dessa base. Essa análise começou na disciplina Estatística para Ciência de Dados e continuou até Análise Exploratória de dados.
+
+Como sempre, o primeiro passo é importar as bibliotecas que serão utilizadas para análise, como tydiverse, summarytools e dlookr.
+
+```{r importando bibliotecas, echo = TRUE, warning = FALSE}
+library(tidyverse)
+library(dlookr)
+library(summarytools)
+library(readxl)
+library(knitr)
+library(stargazer)
+library(mice)
+library(rmarkdown)
+library(tinytex)
+library(sandwich)
+library(magrittr)
+library(shiny)
+```
+
+A base trabalhada nesta aula, será a base de dados hipotética disponbilizada no livro texto dos autores Bussab e Moretim. Vamos importá-la e imprimir as primeiras observações para conhecimento das variáveis.
+
+#```{r importando dados, echo = FALSE}
+#salarios <- readxl::read_excel("/Users/ottotavares/Library/Mobile Documents/com~apple~CloudDocs/Documents/infnet/Estatistica para Ciência de Dados/dados_utilizados/dados_bussab_m.xlsx")
+#```
+
+```{r imprimindo as variaveis, echo = TRUE}
+kable(salarios)
+```
+
+### Identificando os tipos de cada variável na base
+
+Para identificar os tipos de cada variável na base, vamos utilizar a função diagnose do pacote dlookr e reportar o tipo de cada um para melhor trabalharmos os dados.
+
+```{r identificando os tipos de variáveis, echo = TRUE, warning=FALSE, results='asis'}
+salarios %>% dlookr::diagnose()  %>% kable()
+```
+
+É fácil ver que na base há três variáveis qualitativas, sendo as variáveis Estado Civil e região nominais, enquanto a variável Grau de Instrução é ordinal.
+
+Sobre as variáveis quantitativas, temos número de filhos e idade com variáveis discretas, equanto a variável salário é contínua.
+
+## Análise de frequências de variáveis qualitativas
+
+A variável região é uma das variáveis qualitativas nominais da base, sendo uma variável interessante para extraírmos as frequências. Para esse caso, vamos utilizar a função freq() do pacote summarytools
+
+
+### Frequências da variável região
+
+```{r frequencias de uma variavel, echo = TRUE, warning=FALSE, results='asis'}
+salarios %>% dplyr::select(regiao) %>% summarytools::freq(style = "rmarkdown", headings = FALSE)
+```
+
+Nas colunas Freq, temos a frequência absoluta, mostrando um grau de bastante homogeneidade entre as classes. Padrão esse, que é confirmado com a coluna Valid, que apresenta as frequências relativas de cada opção de região. 
+
+Podemos fazer a mesma análise para os dados de estado civil, os quais podemos estar interessados em buscar evidência se há mais funcionários casados ou solteiros na empresa. A seguir, temos a tabela destas proporções, onde é perceptível que há maior proporção de funcionários casados.
+
+
+### Frequências da variável estado civil
+
+```{r frequencias da variavel ecivil, echo = TRUE, warning=FALSE, results='asis'}
+salarios %>% dplyr::select(estado_civil) %>% summarytools::freq(style = "rmarkdown", headings = FALSE)
+```
+
+É importante destacar, que lemos a coluna Valid sem nos preocupar nestes casos, pois não há dados faltantes para nenhumas das duas variáveis.
+
+
+Por fim, podemos criar tabelas de frequências para uma variável quantitativa discreta, como é o caso do número de filhos dos funcionários da empresa. 
+
+### Frequências da variável número de filhos
+
+```{r frequencias da variavel nfilhos, echo = TRUE, warning=FALSE, results='asis'}
+salarios %>% dplyr::select(n_filhos) %>% summarytools::freq(style = "rmarkdown", headings = FALSE)
+```
+
+Como há dados faltantes para essa variável, é importante o analista determinar qual o espaço amostral está interessado em focar sua análise. 
+
+A fim de ser comparável às análises pregressas, é importante que as frequências absoluta e relativa do total de dados seja considerada, isto é, leitura da coluna Total, a fim de manter o mesmo espaço amostral.
+
+Caso, ele esteja interessado em analisar apenas os dados válidos, ele pode redefinir o espaço amostral, ler apenas a coluna Valid, porém recalculando as tabelas anteriores, considerando os indivíduos apenas com dados preenchidos para a variável filhos.
+
+## Relação entre variáveis categóricas
+
+
+De posse de variáveis categóricas ou representadas de forma discreta, podemos calcular suas tabelas de contingências. Essas tabelas retornam as relações, em termos de frequências absoluta e relativa, da ocorrência simultânea de cada valor presente nas variáveis categóricas.
+
+Com essas tabelas, somos capazes de quantificar quanto as variáveis categóricas podem estar relacionadas e nos permetir extrair insights dessas relações.
+
+Dessa forma, a primeira pergunta que nos ocorre na base de salários é se há algum padrão evidente entre grau de instrução e a região de origem do trabalhador. Isto é, será que há prevalescência de mais pessoas com ensino superior na capital, por exemplo?
+
+```{r tabela contigencia grau de instrucao regiao, echo = TRUE, warning = FALSE, results='asis'}
+salarios %$% summarytools::ctable(x = Grau_de_instrucao, 
+       y = regiao, 
+       prop = "r")
+```
+
+Percebe-se que a distribuição é bem uniforme, isto é, não relação evidente entre o padrão de grau de instrução e a região que o indivíduo desta base mora.
+
+
+```{r tabela contigencia estado civil n_filhos, echo = TRUE, warning = FALSE, results='asis'}
+salarios %$%
+  summarytools::ctable(x = factor(n_filhos), 
+       y = estado_civil, 
+       prop = "r") 
+```
+
+Um detalhe extra é que essas tabelas são muito utilizadas em cursos de teoria da probabilidade para quantificar distribuições conjuntas de eventos discretos, onde os somatórios de suas linhas retorna a distribuição marginal de cada variável representada nas colunas, enquanto a soma de suas colunas representam a distribuição marginal das variáveis que estão representadas nas linhas.
+
+
+
+```{r heatmat estado civil e instrucao, echo = TRUE}
+salarios %>% ggplot(aes(x = estado_civil, y = Grau_de_instrucao, fill = salario)) + geom_tile() + xlab('Estado Civil') + ylab('Grau de Instrução')
+```
+
+
+```{r heatmat estado civil e regiao, echo = TRUE}
+salarios %>% ggplot(aes(x = regiao, y = Grau_de_instrucao, fill = salario)) + geom_tile() + xlab('Região') + ylab('Grau de Instrução')
+```
+
+##Análise descritiva e de histogramas de uma variável contínua
+
+Já para a variável salários, podemos analisar a centralidade dos dados, dipersão, assimetria, bem como suas estatísticas de ordem, a fim de checar se há presença de outliers.
+
+Para realizar essa análise, podemos utilizar a função descr do pacote summarytools, e posteriormente realizar a leitura desses dados.
+
+```{r desc variavel salario , echo = TRUE, warning = FALSE, results='asis'}
+salarios %>% dplyr::select(salario) %>% summarytools::descr()
+```
+
+É possível ver pelo critério de skewness discutido em aula, que o valor de 0.6 para assimetria, nos faz interpretar essa distribução como levemente assimétrica, com cauda à direita.
+
+Em decorrência desta assimetria, observamos que média e mediana apresentam valores distintos, com a média tendo valor levemente superior, o que aponta que os valores mais distantes do centro da distribuição puxam o valor da média pra cima. 
+
+Já a mediana por ser uma estatística de ordem, não é sensível a dados que apresentam alto valor na distribuição, o que é reforçado por seu valor levemente mais baixo que a média.
+
+Reparem que se tivéssemos outliers nesta distribuição a média se descolaria ainda mais da mediana, pois estaria totalmente suscetível à contaminação.
+
+##Análise visual da variável salário
+
+Para realizar a análise visual da variável salários, seguimos o padrão de binarização recomendado pelos detentores dos dados. No entanto, reparem que se estivésses interessados em outras regras de binarização seríamos livres para escolher. 
+
+Devemos sempre ter em mente que escolher bins para aproximar a distribuição de probabilidade de uma determinada variável nos incorre em perda de informação, uma vez que estamos tratando como indiferentes eventos distintos para estarem em grupos contíguous do histograma.
+
+```{r analisando salario visualmente , echo = TRUE, results='asis'}
+salarios %>% dplyr::select(salario) %>% ggplot(aes(x=salario))+geom_histogram(aes(y = after_stat(density)) ,bins = 5, fill = 'lightblue') + xlab('Salário') + ylab('Densidade de Frequência') + geom_vline(xintercept=c(median(salarios$salario), mean(salarios$salario))) + annotate("text", x=median(salarios$salario) + 0.3, y=0.05, label="Mediana", angle=90) + annotate("text", x=mean(salarios$salario) + 0.3, y=0.05, label="Média", angle=90) + theme_classic()
+```
+
+
+Reparem por essa visualização que a leitura visual nos leva a conclusões semelhantes a nossa leitura das estatísticas descritas, como por exemplo:
+
+1. Leve assimetria com cauda à direita
+2. Centralidade dos dados calculada pela média sofre leve contaminação dos valores mais distantes do centro da distribuição
+3. Por mais que sejam poucas observações os dados não apresentam dispersão elevada, tendo a maioria dos dados concentrada próxima ao centro da distribuição.
+
+É importante dizer, que o tamanho da perda de informação, ao aproximar a distribuição por um histograma, será proporcional ao espaço que o histograma deixa de preencher como distância da distribuição original dos dados.
+
+Por mais que a estimativa por kernel não seja a distribuição original dos dados, ela tende a ser mais próxima da mesma. Logo, temos uma certa leitura aproximada do tamanho de informação perdida com a análise que segue.
+
+```{r analisando salario visualmente com kernel , echo = TRUE, results='asis'}
+salarios %>% dplyr::select(salario) %>% ggplot(aes(x=salario))+geom_histogram(aes(y = after_stat(density)) ,bins = 5, fill = 'lightblue') + xlab('Salário') + ylab('Densidade de Frequência') + labs(title = "Distribuição dos dados de salário aproximada por Histograma", subtitle = "Binarização sugerida pelos detentores dos Dados") + geom_vline(xintercept=c(median(salarios$salario), mean(salarios$salario))) + annotate("text", x=median(salarios$salario) + 0.3, y=0.05, label="Mediana", angle=90) + annotate("text", x=mean(salarios$salario) + 0.3, y=0.05, label="Média", angle=90) + geom_density(linetype = 2) + theme_classic()
+```
+
+Poderíamos também considerar outras regra de binarização levando em consideração regras disponíveis na literatura, como a regra de Freedman-Diaconis, bem como a regra de Sturge, como segue:
+
+```{r definindo as funcoes geradoras de binwidths FD e S , echo = TRUE}
+
+fd <- function(x) {
+  n <-length(x)
+  return((2*IQR(x))/n^(1/3))
+}
+
+
+sr <- function(x) {
+  n <-length(x)
+  return((3.49*sd(x))/n^(1/3))
+}
+
+```
+
+Como visto em aula, a definição do intervalo do bin pela regra de Freedman-Diaconis leva em consideração o intervalo interquartil dos dados, o que impede com que eventuais outliers tenham influência na definição da amplitude do intervalo do bin.
+
+
+Enquanto a regra de Sturge leva em consideração a dispersão da distribuição para definir a amplitude. Em geral, a regra de Sturge é mais recomendada quando o autor tem alguma evidência de que a distribuição dos dados se aproximará de uma distribuiçao normal, pelo menos no casso assintótico, isto é, quando a amostra dos dados é grande o suficiente.
+
+```{r analisando salario visualmente com kernel e bin FD , echo = TRUE, results='asis'}
+salarios %>% dplyr::select(salario) %>% ggplot(aes(x=salario))+geom_histogram(aes(y = after_stat(density)) , binwidth=fd, fill = 'lightblue') + xlab('Salário') + ylab('Densidade de Frequência') + labs(title = "Distribuição dos dados de salário aproximada por Histograma", subtitle = "Binarização pela Regra de FD") + geom_vline(xintercept=c(median(salarios$salario), mean(salarios$salario))) + annotate("text", x=median(salarios$salario) + 0.3, y=0.05, label="Mediana", angle=90) + annotate("text", x=mean(salarios$salario) + 0.3, y=0.05, label="Média", angle=90) + geom_density(linetype = 2) + theme_classic()
+```
+
+Após a aplicar a regra de Freedman-Diaconis, nosso histograma apresentou um bin a mais, o que pode ser justificado pela extração de um maior nível de detalhes da distribuição dos dados.
+
+O que é interessante é que o padráo de assimetria fica ainda mais evidente com a Moda da distribuição aproximada claramente à esquerda mediana e da média.
+
+```{r analisando salario visualmente com kernel e bin SR , echo = TRUE, results='asis'}
+salarios %>% dplyr::select(salario) %>% ggplot(aes(x=salario))+geom_histogram(aes(y = after_stat(density)) , binwidth=sr, fill = 'lightblue') + xlab('Salário') + ylab('Densidade de Frequência') + labs(title = "Distribuição dos dados de salário aproximada por Histograma", subtitle = "Binarização pela Regra de Sturge") + geom_vline(xintercept=c(median(salarios$salario), mean(salarios$salario))) + annotate("text", x=median(salarios$salario) + 0.3, y=0.05, label="Mediana", angle=90) + annotate("text", x=mean(salarios$salario) + 0.3, y=0.05, label="Média", angle=90) + geom_density(linetype = 2) + theme_classic()
+```
+
+
+Enquanto que ao utilizarmos a regra de Sturge, extraímos exatamente o mesmo padrão sugerido pelos autores, o que nos levanta a desconfiança de eles terem utilizado exatamente a mesma função para realizar a escolha de bins.
+
+##Analisando a matriz de correlação da sub-amostra dos indivíduos que preencheram a variável de filhos
+
+Vamos filtrar apenas os indivíduos de um determinado setor de uma empresa que tenham preenchido os dados de filhos no banco de dados.
+Aqui é importante destacar, que ao fazer esse filtro, muda-se o espaço amostral, esses valores não devem ser comparados com as tabelas anteriores.
+
+```{r Correlacao de variaveis , echo = TRUE}
+kable(cor(salarios %>% dplyr::filter(!is.na(n_filhos)) %>% dplyr::select(salario, n_filhos, idade_anos)))
+```
+
+É fácil ver que quanto maior a idade dos funcionários maior a quantidade de filhos. Relação não tão direta quando o assunto são as comparações entre salário e idade, ou salário e número de filhos. 
+
+Podemos a partir daí, contruir um scatterplot entre as variáveis idade e quantidade de filhos a fim de ver a relação positiva de crescimento propocional entre as variáveis, como segue:
+
+```{r analisando scatter entre variaveis mais correlacionadas , echo = TRUE, results='asis'}
+salarios %>% dplyr::filter(!is.na(n_filhos)) %>% dplyr::select(idade_anos, n_filhos) %>% ggplot(aes(x=n_filhos, y =idade_anos)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + theme_classic()
+```
+
+### Rodando a regressao linear sem a variável n_filhos
+
+```{r regressao linear com uma variavel , echo = TRUE, warning=FALSE, results='asis'}
+#Simples, variavel explicativa idade
+modelo.1 <- lm(salario ~ idade_anos, data = salarios)
+stargazer(modelo.1, type = 'html')
+```
+
+### Multivariada, com a variável estado civil de controle
+
+```{r Multivariada, com a variável estado civil de controle , echo = TRUE , warning=FALSE, results='asis'}
+modelo.2 <- lm(salario ~ idade_anos + factor(estado_civil), data = salarios)
+stargazer(modelo.2, type = 'html')
+```
+
+
+### Multivariada, com as variáveis estado civil, grau de instrucao de controle
+
+```{r Multivariada, com as variáveis estado civil, grau de instrucao de controle , echo = TRUE, warning=FALSE, results='asis'}
+modelo.3 <- lm(salario ~ idade_anos + factor(estado_civil) + factor(Grau_de_instrucao), data = salarios)
+
+stargazer(modelo.3, type = 'html')
+```
+
+### Multivariada, com as variáveis estado civil, grau de instrucao e regiao de controle
+
+```{r Multivariada, com as variáveis estado civil, grau de instrucao e regiao de controle , echo = TRUE}
+lm(salario ~ idade_anos + factor(estado_civil) + factor(Grau_de_instrucao) + factor(regiao), data = salarios) %>% tidy() %>% kable()
+```
+
+
+```{r exemplo stargazer , echo = TRUE, warning=FALSE, results='asis'}
+modelo.linear <- lm(salario ~ idade_anos + factor(estado_civil) + factor(Grau_de_instrucao), data = salarios)
+
+stargazer(modelo.linear, type = "html")
+
+```
+
+## Analise dos Residuos
+### Modelo com todas as variáveis com excecao de n_filhos
+
+```{r residuos analise , echo = TRUE}
+res <- lm(salario ~ idade_anos + factor(estado_civil) + factor(Grau_de_instrucao)  + factor(regiao), data = salarios)$residuals
+
+
+### Modelo com todas as variáveis com excecao de n_filhos e regiao
+res.escolhido <- lm(salario ~ idade_anos + factor(estado_civil) + factor(Grau_de_instrucao)  , data = salarios)$residuals
+
+ggplot(data.frame(residuos = c(res, res.escolhido), modelo = c(rep('Modelo com todas variáveis', times = length(res)), rep('Modelo escolhido', times = length(res.escolhido)))), aes(x = residuos, group = modelo)) + geom_density() + theme_bw()
+
+```
+
+
+
+## Imputando dados com mice
+### Imputando os dados com o pacote mice sem fazer nenhum pós processamento
+
+```{r imputando dados , echo = TRUE}
+imp <- mice(salarios %>% dplyr::mutate(estado_civil = as.factor(estado_civil), Grau_de_instrucao = as.factor(Grau_de_instrucao), regiao = as.factor(regiao)), print = FALSE, m = 5, max.iter = 5 , seed = 512) 
+fit <- with(data = imp, exp = lm(salario ~idade_anos + factor(n_filhos) +factor(estado_civil) + factor(Grau_de_instrucao))) 
+
+est <- pool(fit)
+
+est %>% tidy() %>% kable()
+```
+
+
+
